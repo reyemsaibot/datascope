@@ -1,0 +1,6 @@
+.build/
+.swiftpm/
+Vendor/
+output/
+Fixtures/million.csv
+Fixtures/*.xlsx

@@ -1,0 +1,6 @@
+id,email,score,note
+00123,anna@example.test,10,normal
+00123,,20,""
+00456,"",oops,"   "
+00789,"   ",30,"line one
+line two"
