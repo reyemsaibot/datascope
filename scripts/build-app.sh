@@ -21,6 +21,7 @@ cp "$BUILD_DIR/release/DataScope" "$APP/Contents/MacOS/"
 cp Vendor/libduckdb.dylib "$APP/Contents/Frameworks/"
 cp Vendor/excel.duckdb_extension "$APP/Contents/Resources/"
 cp docs/DUCKDB-LICENSE.txt "$APP/Contents/Resources/"
+cp Assets/DataScopeLogo.png "$APP/Contents/Resources/"
 cp "$assetOutput/Assets.car" "$APP/Contents/Resources/"
 tiff2icns "$assetOutput/icon-pages.tiff" "$APP/Contents/Resources/AppIcon.icns" >/dev/null
 install_name_tool -add_rpath @executable_path/../Frameworks "$APP/Contents/MacOS/DataScope"
@@ -37,7 +38,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>CFBundleIconName</key><string>AppIcon</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>0.1.0</string>
-<key>CFBundleVersion</key><string>7</string>
+<key>CFBundleVersion</key><string>8</string>
 <key>LSMinimumSystemVersion</key><string>14.0</string>
 <key>NSHighResolutionCapable</key><true/>
 </dict></plist>

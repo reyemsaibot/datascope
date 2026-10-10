@@ -13,6 +13,12 @@
 - Der Release-Build vom 10. Oktober enthält die Spalten „Typ“ und „Max. Länge“.
   `plutil -lint` und `codesign --verify --deep --strict` bestanden. Die gebaute CLI
   bestätigte für `customers.csv`, dass die ID mit führenden Nullen Text bleibt.
+- Build 8 enthält das transparente Seitenleisten-Logo und Spaltendetails nach der
+  Auswahl einer Profilzeile; die erste Spalte ist nach der Analyse vorausgewählt.
+  Der gebündelte Build wurde geöffnet, `customers.csv` gewählt und vollständig
+  analysiert. Die UI zeigte 4 Zeilen, 4 Spalten, 5 leere/fehlende Zellen und die
+  erwarteten Spaltenwerte. Die UI-Automation brach beim separaten Klick auf eine
+  Tabellenzeile ab; dieser konkrete Klickpfad bleibt praktisch ungeprüft.
 - Der Abbruchtest unterbricht eine echte DuckDB-Abfrage über zehn Milliarden
   generierte Werte nach etwa 0,1 Sekunden, Test einschließlich neuem Import ca. 0,12 s.
 - UI-Prüfung im gebündelten App-Paket: customers.csv → 4 Zeilen, 4 Spalten,

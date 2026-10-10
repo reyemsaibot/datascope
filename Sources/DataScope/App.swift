@@ -72,14 +72,12 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             VStack(alignment: .leading, spacing: 24) {
-                Label("DataScope", systemImage: "chart.bar.xaxis").font(.title2.bold())
+                BrandLogo()
                 Text("LOKALES DATA PROFILING").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
                 Label(model.url?.lastPathComponent ?? "Keine Datenquelle", systemImage: "doc.text")
                     .font(.headline).lineLimit(3)
                 Text("CSV · TSV · Excel").font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                Label("Verarbeitung auf deinem Mac", systemImage: "desktopcomputer").font(.caption).foregroundStyle(.secondary)
-                Text("Technischer Prototyp · Etappe B").font(.caption2).foregroundStyle(.tertiary)
             }.padding(22)
                 .navigationSplitViewColumnWidth(230)
         } detail: {
@@ -129,7 +127,10 @@ struct ContentView: View {
                         .padding().background(.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 10)).frame(maxHeight: 160)
                 }
                 if let profile = model.profile {
-                    ProfileView(profile: profile)
+                    ScrollView {
+                        ProfileView(profile: profile)
+                            .padding(.bottom, 4)
+                    }
                 } else if !model.running && model.error == nil {
                     ContentUnavailableView("Ein klarer Blick auf deine Daten", systemImage: "tablecells.badge.ellipsis",
                                            description: Text("Öffne eine Datei. DataScope erhält Rohwerte und prüft jede Zeile auf fehlende und interpretierbare Werte."))
@@ -139,8 +140,30 @@ struct ContentView: View {
     }
 }
 
+struct BrandLogo: View {
+    var body: some View {
+        if let url = Bundle.main.url(forResource: "DataScopeLogo", withExtension: "png"),
+           let logo = NSImage(contentsOf: url) {
+            Image(nsImage: logo)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(maxWidth: 172, alignment: .leading)
+                .accessibilityLabel("DataScope")
+        } else {
+            Label("DataScope", systemImage: "chart.bar.xaxis").font(.title2.bold())
+        }
+    }
+}
+
 struct ProfileView: View {
     let profile: Profile
+    @State private var selectedColumnIDs: Set<ColumnProfile.ID> = []
+
+    private var selectedColumn: ColumnProfile? {
+        guard let id = selectedColumnIDs.first else { return nil }
+        return profile.columns.first { $0.id == id }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 28) {
@@ -150,7 +173,7 @@ struct ProfileView: View {
                 metric("LAUFZEIT", String(format: "%.2f s", profile.totalSeconds))
             }.padding(16).frame(maxWidth: .infinity, alignment: .leading).background(.teal.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
             Text("Spaltenprofil · alle Zeilen analysiert").font(.headline)
-            Table(profile.columns) {
+            Table(profile.columns, selection: $selectedColumnIDs) {
                 TableColumn("Spalte", value: \.name).width(min: 120)
                 TableColumn("NULL") { Text($0.nulls.formatted()) }.width(55)
                 TableColumn("Leer") { Text($0.empty.formatted()) }.width(50)
@@ -163,8 +186,11 @@ struct ProfileView: View {
                     Text("\(number($0.minimum)) / \(number($0.maximum)) / \(number($0.mean))")
                 }.width(min: 160)
             }.frame(minHeight: 140)
-            Text("Typ: alle befüllten Werte müssen zum selben Format passen. Datum: JJJJ-MM-TT, TT.MM.JJJJ oder TT/MM/JJJJ. Max. Länge: längster Rohwert. IDs mit führenden Nullen bleiben Text.")
+            Text("Eine Spalte auswählen, um ihr Profil zu lesen. Typ: alle befüllten Werte müssen zum selben Format passen. Datum: JJJJ-MM-TT, TT.MM.JJJJ oder TT/MM/JJJJ. IDs mit führenden Nullen bleiben Text.")
                 .font(.caption).foregroundStyle(.secondary)
+            if let selectedColumn {
+                ColumnDetailView(column: selectedColumn, rows: profile.rows)
+            }
             DisclosureGroup("Datenvorschau · maximal 100 Zeilen") {
                 ScrollView([.horizontal, .vertical]) {
                     VStack(alignment: .leading, spacing: 4) {
@@ -178,6 +204,12 @@ struct ProfileView: View {
                     }.font(.system(.caption, design: .monospaced)).textSelection(.enabled).padding(8)
                 }.frame(height: 140)
             }
+        }.onAppear {
+            if selectedColumnIDs.isEmpty, let firstColumn = profile.columns.first {
+                selectedColumnIDs = [firstColumn.id]
+            }
+        }.onChange(of: profile.source) { _, _ in
+            selectedColumnIDs = profile.columns.first.map { [$0.id] } ?? []
         }
     }
     private func metric(_ label: String, _ value: String) -> some View {
@@ -188,5 +220,40 @@ struct ProfileView: View {
     }
     private func number(_ value: Double?) -> String {
         value.map { $0.formatted(.number.precision(.fractionLength(0...3))) } ?? "–"
+    }
+}
+
+struct ColumnDetailView: View {
+    let column: ColumnProfile
+    let rows: Int
+
+    private var populated: Int { max(0, rows - column.missing) }
+
+    var body: some View {
+        GroupBox {
+            HStack(alignment: .top, spacing: 24) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(column.name).font(.headline)
+                    Text(column.dataType.displayName).foregroundStyle(.secondary)
+                }.frame(minWidth: 150, alignment: .leading)
+                detail("BEFÜLLT", "\(populated.formatted()) von \(rows.formatted())")
+                detail("FEHLEND", column.missing.formatted())
+                detail("VERSCHIEDEN", column.distinct.formatted())
+                detail("MAX. LÄNGE", column.maximumLength.formatted())
+                if column.numeric > 0 {
+                    detail("NUMERISCH", "\(column.numeric.formatted()) von \(populated.formatted())")
+                }
+                Spacer(minLength: 0)
+            }.padding(4)
+        } label: {
+            Label("Spaltendetails", systemImage: "rectangle.and.text.magnifyingglass")
+        }
+    }
+
+    private func detail(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+            Text(value).font(.callout.weight(.medium)).monospacedDigit()
+        }
     }
 }

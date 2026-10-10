@@ -1,5 +1,6 @@
 .build/
 .swiftpm/
+.DS_Store
 Vendor/
 output/
 Fixtures/million.csv
