@@ -3,7 +3,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 export CLANG_MODULE_CACHE_PATH="${TMPDIR:-/tmp}/datascope-clang"
 export SWIFTPM_MODULECACHE_OVERRIDE="${TMPDIR:-/tmp}/datascope-swift"
-swift build -c release --disable-sandbox
+BUILD_DIR="${SWIFT_BUILD_DIR:-.build}"
+swift build -c release --scratch-path "$BUILD_DIR" --disable-sandbox
 assetOutput="$(mktemp -d "${TMPDIR:-/tmp}/datascope-assets.XXXXXX")"
 trap 'rm -rf "$assetOutput"' EXIT
 xcrun actool --compile "$assetOutput" --platform macosx --minimum-deployment-target 14.0 \
@@ -16,7 +17,7 @@ tiffutil -cat "$assetOutput/icon-16.tiff" "$assetOutput/icon-32.tiff" "$assetOut
   "$assetOutput/icon-1024.tiff" -out "$assetOutput/icon-pages.tiff" >/dev/null
 APP="$PWD/output/DataScope.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Frameworks" "$APP/Contents/Resources"
-cp .build/release/DataScope "$APP/Contents/MacOS/"
+cp "$BUILD_DIR/release/DataScope" "$APP/Contents/MacOS/"
 cp Vendor/libduckdb.dylib "$APP/Contents/Frameworks/"
 cp Vendor/excel.duckdb_extension "$APP/Contents/Resources/"
 cp docs/DUCKDB-LICENSE.txt "$APP/Contents/Resources/"
