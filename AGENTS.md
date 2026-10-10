@@ -203,15 +203,15 @@ Fehler zusätzlich in diese Arbeitsregeln aufnehmen. Frühere Erfolgsmeldungen
 gelten nicht als Beweis, wenn spätere Nutzerberichte sie widerlegen.
 
 
-## 9 End every task with a full accounting 
+## 9 End every task with a full accounting
  Conclude every task with:
- 
+
 - **Completed:** what was analyzed, changed, or delivered.
 - **Evidence consulted:** local files, SAP objects, interfaces, DDIC metadata, standard callers, and experiments used.
 - **Verification:** syntax checks, tests, read-only experiments, release checks, or inspections performed and their results.
 - **Not done:** skipped edge cases, omitted tests, deferred cleanup, inaccessible evidence, or intentionally excluded work.
 - **Assumptions: ** every assumption made under rule 2A.
-- **Unresolved issues:** code smells, design concerns, migration risks, or technical debt noticed but left untouched to remain within scope. 
+- **Unresolved issues:** code smells, design concerns, migration risks, or technical debt noticed but left untouched to remain within scope.
 
 ## 10. Steckbrief und überprüfbare Designentscheidungen
 
