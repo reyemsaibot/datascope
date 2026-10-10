@@ -159,9 +159,9 @@ struct ProfileView: View {
                 TableColumn("Typ") { Text($0.dataType.displayName) }.width(100)
                 TableColumn("Max. Länge") { Text($0.maximumLength.formatted()) }.width(85)
                 TableColumn("Numerisch") { Text($0.numeric.formatted()) }.width(75)
-                TableColumn("Min") { Text(number($0.minimum)) }.width(min: 60)
-                TableColumn("Max") { Text(number($0.maximum)) }.width(min: 60)
-                TableColumn("Mittelwert") { Text(number($0.mean)) }.width(min: 80)
+                TableColumn("Min / Max / Ø") {
+                    Text("\(number($0.minimum)) / \(number($0.maximum)) / \(number($0.mean))")
+                }.width(min: 160)
             }.frame(minHeight: 140)
             Text("Typ: alle befüllten Werte müssen zum selben Format passen. Datum: JJJJ-MM-TT, TT.MM.JJJJ oder TT/MM/JJJJ. Max. Länge: längster Rohwert. IDs mit führenden Nullen bleiben Text.")
                 .font(.caption).foregroundStyle(.secondary)

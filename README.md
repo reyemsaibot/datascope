@@ -1,87 +1,156 @@
 # DataScope
 
-Native Mac-App für lokales Data Profiling. Arbeitsname; technischer Prototyp der
-Etappen A/B. Der dauerhaft gespeicherte Ausbauplan steht in [docs/PLAN.md](docs/PLAN.md).
-Bestehende Projekte im übergeordneten Workspace werden nicht verändert.
+DataScope ist eine native macOS-App für lokales Data Profiling. Sie hilft dabei,
+CSV-, TSV- und Excel-Dateien vor einem Import, einer Auswertung oder einer Migration
+zu prüfen. Die Analyse läuft auf dem Mac; während einer Analyse werden keine Daten an
+einen Dienst übertragen.
 
-## Start
+> **Status:** Technischer Prototyp für Apple Silicon mit macOS 14 oder neuer. Die App
+> ist lokal ad-hoc signiert und noch nicht notarisiert.
 
-Voraussetzung: Apple Silicon, macOS 14+, Xcode/Swift 6 und Python 3 für Testdaten.
+## Was DataScope prüft
+
+- Zeilen- und Spaltenanzahl über den vollständigen Import
+- `NULL`, leerer Text und Text, der nur aus Whitespace besteht
+- Anzahl unterschiedlicher nichtleerer Rohwerte
+- numerisch interpretierbare Werte sowie Minimum, Maximum und Mittelwert
+- Spaltentyp: Ganzzahl, Dezimalzahl, Datum, Text oder leer
+- maximale Länge des Rohwerts je Spalte
+- Datenvorschau mit bis zu 100 Zeilen
+
+Führende Nullen bleiben erhalten. Eine ID wie `00123` wird deshalb als Text
+behandelt, auch wenn sie technisch als Zahl gelesen werden könnte.
+
+## Voraussetzungen
+
+- Apple-Silicon-Mac (`arm64`)
+- macOS 14 oder neuer
+- Xcode Command Line Tools mit Swift 6
+- Python 3 für das Setup und die synthetischen Beispieldateien
+- Internetzugang **nur** für das einmalige Setup
+
+## Installation und Start
+
+Repository klonen und in den Projektordner wechseln:
 
 ```sh
-cd DataScope
+git clone https://github.com/reyemsaibot/datascope.git
+cd datascope
+```
+
+Beim ersten Start lädt das Setup DuckDB 1.4.3 und die Excel-Erweiterung, prüft deren
+SHA-256-Prüfsummen und erzeugt synthetische Beispieldateien:
+
+```sh
 ./scripts/setup.sh
+```
+
+Danach die App bauen und öffnen:
+
+```sh
 ./scripts/build-app.sh
 open output/DataScope.app
 ```
 
-Setup lädt einmalig DuckDB 1.4.3 und die passende Excel-Erweiterung von den
-offiziellen Downloadservern und prüft die fixierten SHA-256-Werte. Der Build und
-das anschließende Profiling benötigen kein Netzwerk. Vendor-Dateien und die App
-sind generierte Artefakte und nicht für Git vorgesehen.
+Das Ergebnis liegt unter `output/DataScope.app`. Nach dem Setup funktionieren Build
+und Profiling ohne Netzwerkverbindung.
 
-## Bedienung
+## Erste Analyse in der App
 
-1. Datei öffnen, beispielsweise `Fixtures/customers.csv` oder `Fixtures/workbook.xlsx`.
-2. Überschriften und Trennzeichen bzw. Blattnamen einstellen. Ohne Blattnamen wird
-   das erste Blatt gelesen. Für `sales.csv` „Deutsche Zahlen“ einschalten.
-3. „Profil berechnen“ starten. Ein laufender Import oder eine Analyse lässt sich abbrechen.
-4. Kennzahlen und die auf 100 Zeilen begrenzte Datenvorschau ansehen.
+1. **Datei öffnen …** wählen (`⌘O`).
+2. Eine CSV-, TSV- oder XLSX-Datei auswählen.
+3. Die Importoptionen prüfen:
+   - **Erste Zeile enthält Überschriften** deaktivieren, wenn die Datei keine Header hat.
+   - Für CSV/TSV das Trennzeichen automatisch erkennen lassen oder explizit auswählen.
+   - Für Excel bei Bedarf den Blattnamen eintragen; ein leeres Feld verwendet das erste Blatt.
+   - **Deutsche Zahlen** aktivieren, wenn Werte etwa als `1.234,50` vorliegen.
+4. **Profil berechnen** auswählen. Der Lauf kann über **Abbrechen** beendet werden.
+5. Das Spaltenprofil und die Datenvorschau prüfen.
 
-Alle Kennzahlen betreffen den vollständigen Import, nicht eine Stichprobe.
-Die Beispieldateien sind synthetisch; reale Anwenderdaten wurden nicht verwendet.
+Alle Kennzahlen beziehen sich auf die gesamte Datei. Nur die Vorschau ist auf 100
+Zeilen begrenzt.
 
-## Umfang und Grenzen
+### Spaltenprofil lesen
 
-- CSV/TSV: UTF-8, explizites oder automatisch erkanntes Trennzeichen. Rohwerte als
-  Text; führende Nullen bleiben erhalten. Unzitierte leere Felder = NULL, zitierte
-  leere Felder = leerer Text; Whitespace wird separat gezählt.
-- XLSX: Blattname, Rohzellwerte als Text und vollständiges Weiterlesen hinter leeren
-  Zeilen. Kein XLS, keine Neuberechnung von Formeln. Anzeigeformate (z. B. numerische
-  IDs mit Format `00000`, Datumsformatierung) werden nicht originalgetreu abgebildet.
-  Nur als Text gespeicherte Excel-IDs behalten garantiert ihre führenden Nullen.
-- Unterschiedliche Werte: exakte Anzahl nichtleerer Rohwerte, case-sensitive.
-- Zahlen: endliche DOUBLE-Werte; Min/Max/Mittelwert nur dieser Teilmenge. Für deutsche
-  Zahlen gelten Dezimalkomma und optional korrekt gruppierte Tausenderpunkte.
-  Die Spaltentypen unterscheiden Ganzzahl, Dezimalzahl, Datum, Text und leer. Ein
-  Typ erscheint nur, wenn alle befüllten Werte dazu passen; führende Nullen machen
-  eine sonst numerische ID zu Text. Erkannt werden ISO-Datum (`JJJJ-MM-TT`) sowie
-  `TT.MM.JJJJ` und `TT/MM/JJJJ`. „Max. Länge“ misst den längsten Rohwert.
-- Parserfehler brechen den Import sichtbar ab. Fehlerzeilen-Export folgt später.
-- Speicher: DuckDB-Pufferbudget 512 MB, vier Threads, temporäre Auslagerung auf Disk.
-  Das Budget ist keine harte Grenze für den gesamten Prozess. Temporäre Dateien
-  werden beim normalen Abschluss/Abbruch entfernt; Crash-Aufräumen folgt in F.
-- Keine Projekte, Regeln, Filter-Drilldowns oder Berichte in dieser Etappe.
-- Lokales, ad-hoc-signiertes App-Paket; noch nicht notarisiert oder auf einem zweiten
-  Mac validiert. Intel-Unterstützung ist noch nicht eingerichtet.
+| Spalte | Bedeutung |
+| --- | --- |
+| `NULL` | Fehlender Datenbankwert bzw. nicht zitierter leerer CSV-Wert |
+| `Leer` | Explizit leerer Text, etwa `""` |
+| `Whitespace` | Wert enthält nach dem Entfernen von Leerzeichen nichts mehr |
+| `Verschieden` | Anzahl unterschiedlicher, nichtleerer Rohwerte |
+| `Typ` | Einheitlicher Typ aller befüllten Werte |
+| `Max. Länge` | Länge des längsten Rohwerts |
+| `Numerisch` | Anzahl der Werte, die als endliche Zahl interpretierbar sind |
+| `Min / Max / Ø` | Kennzahlen der numerisch interpretierbaren Werte |
 
-## Tests und Messung
+Ein Typ wird nur dann als Ganzzahl, Dezimalzahl oder Datum ausgegeben, wenn **alle**
+befüllten Werte dazu passen. Bei einer Spalte mit `10`, `20` und `oops` lautet der Typ
+deshalb **Text**, während `Numerisch` weiterhin `2` anzeigt.
+
+Erkannte Datumsformate sind `JJJJ-MM-TT`, `TT.MM.JJJJ` und `TT/MM/JJJJ`.
+
+## Unterstützte Dateien und Grenzen
+
+| Format | Unterstützung |
+| --- | --- |
+| CSV / TSV | UTF-8, automatisch oder manuell gewähltes Trennzeichen, Rohwerte bleiben Text |
+| XLSX | Arbeitsblatt auswählbar, gespeicherte Zellwerte werden auch nach Leerzeilen gelesen |
+| XLS | Nicht unterstützt |
+
+- Excel-Formeln werden nicht neu berechnet. Excel-Anzeigeformate, etwa eine numerische
+  ID mit Anzeigeformat `00000`, können nicht originalgetreu wiederhergestellt werden.
+- Deutsche Zahlen werden bei aktivierter Option als Dezimalkomma mit korrekt gruppierten
+  Tausenderpunkten interpretiert.
+- Parserfehler brechen den Import mit einer sichtbaren Fehlermeldung ab; fehlerhafte
+  Zeilen werden nicht stillschweigend übersprungen.
+- DataScope ist ein Analysewerkzeug. Regeln, Histogramme, Problemzeilen-Navigation,
+  Projekte und Berichts-Export folgen in späteren Etappen.
+
+## Beispiele und Kommandozeile
+
+Das Setup erzeugt synthetische Dateien in `Fixtures/`. Die Profiling-Engine kann auch
+ohne die Oberfläche genutzt werden und schreibt dann JSON nach stdout:
+
+```sh
+swift build -c release --disable-sandbox
+
+.build/release/profile Fixtures/customers.csv
+.build/release/profile Fixtures/sales.csv --delimiter ';' --decimal-comma
+.build/release/profile Fixtures/workbook.xlsx --sheet Umsatz
+```
+
+Verfügbare Optionen:
+
+```text
+profile DATEI [--delimiter ';'] [--sheet NAME] [--decimal-comma] [--no-header] [--cancel-after SEKUNDEN]
+```
+
+## Entwicklung und Tests
 
 ```sh
 export CLANG_MODULE_CACHE_PATH="${TMPDIR:-/tmp}/datascope-clang"
 export SWIFTPM_MODULECACHE_OVERRIDE="${TMPDIR:-/tmp}/datascope-swift"
 swift test --disable-sandbox
+```
+
+Für die definierte Million-Zeilen-Messung:
+
+```sh
 python3 scripts/fixtures.py --million
-./scripts/build-app.sh
 python3 scripts/benchmark.py
 ```
 
-CLI mit JSON-Ausgabe (nützlich für reproduzierbare Vergleiche):
-
-```sh
-.build/release/profile Fixtures/customers.csv
-.build/release/profile Fixtures/sales.csv --delimiter ';' --decimal-comma
-.build/release/profile Fixtures/workbook.xlsx --sheet Umsatz
-.build/release/profile Fixtures/million.csv --cancel-after 0.1
-```
+Der aktuelle Prüfstand und bekannte Grenzen sind in
+[docs/VALIDATION.md](docs/VALIDATION.md) dokumentiert. Der geplante Ausbau steht in
+[docs/PLAN.md](docs/PLAN.md).
 
 ## Architektur
 
-`ProfilingCore`: eigenständige DuckDB-Verbindung pro Lauf, C-API, explizite
-Lebensdauer und thread-sicherer Interrupt-Handle. Synchrone Engine läuft im
-App-Worker, nicht auf dem MainActor. `DataScope`: SwiftUI-Oberfläche.
-`ProfileCLI`: dieselbe Engine ohne UI. Engine und Excel-Erweiterung sind im App-Paket
-gebündelt; automatisches Installieren/Laden weiterer Erweiterungen ist abgeschaltet.
+`DataScope` ist die SwiftUI-Oberfläche. `ProfilingCore` enthält die Profiling-Logik
+und verwendet DuckDB über dessen C-API. `ProfileCLI` verwendet dieselbe Engine für
+reproduzierbare JSON-Ausgaben. Import und Analyse laufen außerhalb des MainActor;
+die Oberfläche bleibt dabei bedienbar und kann eine DuckDB-Abfrage unterbrechen.
 
-DuckDB ist MIT-lizenziert: https://github.com/duckdb/duckdb/blob/v1.4.3/LICENSE
-DataCleaner dient als funktionale Referenz; sein Code wird nicht eingebunden.
+DuckDB ist unter der MIT-Lizenz verfügbar:
+<https://github.com/duckdb/duckdb/blob/v1.4.3/LICENSE>. DataCleaner ist eine
+funktionale Referenz; sein Code wird nicht eingebunden.

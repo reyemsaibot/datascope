@@ -1,14 +1,18 @@
 # Prüfung der Etappen A/B
 
-9. Oktober 2026, lokaler technischer Prototyp. Kein Produktionsrelease.
+10. Oktober 2026, lokaler technischer Prototyp. Kein Produktionsrelease.
 
 ## Verifiziert
 
 - Swift-6-Debug- und Release-Build erfolgreich.
-- Neun XCTest-Tests bestanden: CSV-Rohwerte, getrennte NULL/leer/Whitespace-Zählung,
+- Zehn XCTest-Tests bestanden: CSV-Rohwerte, getrennte NULL/leer/Whitespace-Zählung,
   deutsche Zahlen, XLSX-Blattwahl und Weiterlesen nach Leerzeile, Parserfehler,
   SQL-Sonderzeichen in Dateinamen/Spaltennamen, leere Tabellen, begrenzte Vorschau,
-  Abbruch vor Start und laufender Abfrage mit anschließend erfolgreichem Neulauf.
+  Abbruch vor Start und laufender Abfrage mit anschließend erfolgreichem Neulauf sowie
+  Typen für Ganzzahl, Dezimalzahl, Text, leere Spalten und drei Datumsformate.
+- Der Release-Build vom 10. Oktober enthält die Spalten „Typ“ und „Max. Länge“.
+  `plutil -lint` und `codesign --verify --deep --strict` bestanden. Die gebaute CLI
+  bestätigte für `customers.csv`, dass die ID mit führenden Nullen Text bleibt.
 - Der Abbruchtest unterbricht eine echte DuckDB-Abfrage über zehn Milliarden
   generierte Werte nach etwa 0,1 Sekunden, Test einschließlich neuem Import ca. 0,12 s.
 - UI-Prüfung im gebündelten App-Paket: customers.csv → 4 Zeilen, 4 Spalten,
@@ -49,8 +53,12 @@ Die UI soll währenddessen bedienbar bleiben. Andere Datensätze separat messen.
 - A verwendet noch Arbeitsannahmen und synthetische Dateien. Echte Anforderungen
   zu Quellen, Größe, Datenformaten und Mindest-macOS müssen damit abgeglichen werden.
 - CSV-Encoding vorerst UTF-8. Keine Zeichensatzwahl oder Import-Vorschau vor Analyse.
-- Keine automatische fachliche Typentscheidung, Datumserkennung, Histogramme,
-  Regeln, Problemzeilen-Navigation oder Projektpersistenz. Diese folgen in C–E.
+- Die Typbestimmung ist streng: nur vollständig passende befüllte Werte werden als
+  Ganzzahl, Dezimalzahl oder Datum eingestuft. Gemischte oder fehlerhafte Werte bleiben
+  Text; die Anzahl numerisch interpretierbarer Werte zeigt die Abweichung. Unterstützt
+  sind ISO-Datum, `TT.MM.JJJJ` und `TT/MM/JJJJ`; weitere regionale Datumsformate,
+  Zeitstempel, Histogramme, Regeln, Problemzeilen-Navigation und Projektpersistenz
+  folgen in C–E.
 - XLSX-Import liest gespeicherte Werte. Excel-Anzeigeformate, Formelberechnung,
   Shared-Formula-Sonderfälle und sehr große Arbeitsmappen sind nicht vollständig geprüft.
 - Intel, App Sandbox, Security-scoped Bookmarks, Notarisierung, Crash-Aufräumen

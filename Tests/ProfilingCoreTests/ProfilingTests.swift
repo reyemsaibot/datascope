@@ -21,7 +21,7 @@ final class ProfilingTests: XCTestCase {
         let score = result.columns[2]
         XCTAssertEqual(score.numeric, 3); XCTAssertEqual(score.minimum, 10)
         XCTAssertEqual(score.maximum, 30); XCTAssertEqual(score.mean, 20)
-        XCTAssertEqual(score.dataType, .integer)
+        XCTAssertEqual(score.dataType, .string) // "oops" keeps the column from being a clean integer type.
         XCTAssertEqual(result.columns[3].maximumLength, 17)
     }
     func testGermanNumbers() throws {
