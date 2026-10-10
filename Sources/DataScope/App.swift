@@ -126,9 +126,9 @@ struct ContentView: View {
                     ScrollView { Text(error).font(.system(.caption, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }
                         .padding().background(.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 10)).frame(maxHeight: 160)
                 }
-                if let profile = model.profile {
+                if let profile = model.profile, let sourceURL = model.url {
                     ScrollView {
-                        ProfileView(profile: profile)
+                        ProfileView(profile: profile, sourceURL: sourceURL, options: model.options)
                             .padding(.bottom, 4)
                     }
                 } else if !model.running && model.error == nil {
@@ -157,7 +157,15 @@ struct BrandLogo: View {
 
 struct ProfileView: View {
     let profile: Profile
+    let sourceURL: URL
+    let options: ImportOptions
     @State private var selectedColumnIDs: Set<ColumnProfile.ID> = []
+    @State private var filter: RowFilter = .all
+    @State private var rules: [ProfileRule] = []
+    @State private var ruleRevision = 0
+    @State private var detail: ColumnDetail?
+    @State private var detailError: String?
+    @State private var detailLoading = false
 
     private var selectedColumn: ColumnProfile? {
         guard let id = selectedColumnIDs.first else { return nil }
@@ -190,6 +198,9 @@ struct ProfileView: View {
                 .font(.caption).foregroundStyle(.secondary)
             if let selectedColumn {
                 ColumnDetailView(column: selectedColumn, rows: profile.rows)
+                ColumnAnalysisView(column: selectedColumn, headers: profile.columns.map(\.name), detail: detail, filter: $filter, rules: $rules,
+                                   loading: detailLoading, error: detailError,
+                                   refreshRules: { ruleRevision += 1 })
             }
             DisclosureGroup("Datenvorschau · maximal 100 Zeilen") {
                 ScrollView([.horizontal, .vertical]) {
@@ -210,7 +221,45 @@ struct ProfileView: View {
             }
         }.onChange(of: profile.source) { _, _ in
             selectedColumnIDs = profile.columns.first.map { [$0.id] } ?? []
+            rules = []
+            filter = .all
+        }.onChange(of: selectedColumnIDs) { _, _ in
+            rules = []
+            filter = .all
+            ruleRevision += 1
+        }.task(id: detailTaskID) {
+            await loadDetail()
         }
+    }
+
+    private var detailTaskID: String {
+        "\(selectedColumn?.id ?? "")-\(filter.rawValue)-\(ruleRevision)"
+    }
+
+    private func loadDetail() async {
+        guard let column = selectedColumn else { return }
+        detailLoading = true
+        detailError = nil
+        let sourceURL = sourceURL
+        let options = options
+        let selectedID = column.id
+        let filter = filter
+        let rules = rules
+        do {
+            let result = try await Task.detached(priority: .userInitiated) {
+                try Profiler.inspect(url: sourceURL, options: options, columnName: column.name,
+                                     inferredType: column.dataType, filter: filter, rules: rules)
+            }.value
+            guard !Task.isCancelled, selectedColumn?.id == selectedID else { return }
+            detail = result
+        } catch is CancellationError {
+            return
+        } catch {
+            guard !Task.isCancelled else { return }
+            detailError = error.localizedDescription
+            detail = nil
+        }
+        detailLoading = false
     }
     private func metric(_ label: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -255,5 +304,180 @@ struct ColumnDetailView: View {
             Text(label).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
             Text(value).font(.callout.weight(.medium)).monospacedDigit()
         }
+    }
+}
+
+struct ColumnAnalysisView: View {
+    let column: ColumnProfile
+    let headers: [String]
+    let detail: ColumnDetail?
+    @Binding var filter: RowFilter
+    @Binding var rules: [ProfileRule]
+    let loading: Bool
+    let error: String?
+    let refreshRules: () -> Void
+
+    var body: some View {
+        GroupBox("Werte und Auffälligkeiten") {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Picker("Zeilen", selection: $filter) {
+                        ForEach(RowFilter.allCases) { Text($0.displayName).tag($0) }
+                    }.frame(width: 190)
+                    if loading { ProgressView().controlSize(.small) }
+                    if let detail { Text("\(detail.matchingRows.formatted()) Treffer").foregroundStyle(.secondary) }
+                    Spacer()
+                }
+                if let error {
+                    Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled)
+                } else if let detail {
+                    analysis(detail)
+                } else if !loading {
+                    ContentUnavailableView("Keine Detaildaten", systemImage: "magnifyingglass")
+                }
+            }.padding(4)
+        }
+        RuleEditor(rules: $rules, results: detail?.ruleResults ?? [], refresh: refreshRules)
+    }
+
+    @ViewBuilder private func analysis(_ detail: ColumnDetail) -> some View {
+        if !detail.frequentValues.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Häufigste Werte").font(.subheadline.weight(.semibold))
+                ForEach(detail.frequentValues) { value in
+                    HStack {
+                        Text(value.value).lineLimit(1).help(value.value)
+                        Spacer()
+                        Text(value.count.formatted()).monospacedDigit().foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        if !detail.textPatterns.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Textmuster · 0 = Ziffer, A = Buchstabe").font(.subheadline.weight(.semibold))
+                ForEach(detail.textPatterns) { pattern in
+                    HStack {
+                        Text(pattern.value).lineLimit(1)
+                        Spacer()
+                        Text(pattern.count.formatted()).monospacedDigit().foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        if let distribution = detail.numericDistribution {
+            NumericDistributionView(distribution: distribution)
+        }
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Betroffene Zeilen · maximal 200 angezeigt").font(.subheadline.weight(.semibold))
+            if detail.rows.isEmpty {
+                Text("Keine Zeilen für diesen Filter.").foregroundStyle(.secondary)
+            } else {
+                ScrollView(.horizontal) {
+                    Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 5) {
+                        GridRow {
+                            Text("Zeile").bold().frame(width: 54, alignment: .leading)
+                            ForEach(0..<(detail.rows.first?.values.count ?? 0), id: \.self) { index in
+                                Text(headers.indices.contains(index) ? headers[index] : "Wert \(index + 1)")
+                                    .bold().frame(width: 150, alignment: .leading)
+                            }
+                        }
+                        ForEach(detail.rows) { row in
+                            GridRow {
+                                Text(row.rowNumber.formatted()).frame(width: 54, alignment: .leading)
+                                ForEach(row.values.indices, id: \.self) { index in
+                                    Text(display(row.values[index])).lineLimit(1).help(row.values[index] ?? "NULL")
+                                        .frame(width: 150, alignment: .leading)
+                                }
+                            }
+                        }
+                    }.font(.system(.caption, design: .monospaced)).textSelection(.enabled)
+                }.frame(maxHeight: 180)
+            }
+        }
+    }
+
+    private func display(_ value: String?) -> String {
+        value.map { $0.isEmpty ? "⟨leer⟩" : $0 } ?? "⟨NULL⟩"
+    }
+}
+
+struct NumericDistributionView: View {
+    let distribution: NumericDistribution
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Numerische Verteilung").font(.subheadline.weight(.semibold))
+            HStack(spacing: 18) {
+                number("Q1", distribution.firstQuartile)
+                number("Median", distribution.median)
+                number("Q3", distribution.thirdQuartile)
+            }
+            HStack(alignment: .bottom, spacing: 4) {
+                ForEach(Array(distribution.bins.enumerated()), id: \.offset) { _, count in
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(.teal.opacity(0.7))
+                        .frame(width: 30, height: max(5, 52 * CGFloat(count) / CGFloat(max(distribution.bins.max() ?? 1, 1))))
+                        .help("\(count) Werte")
+                }
+            }
+        }
+    }
+
+    private func number(_ label: String, _ value: Double) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+            Text(value.formatted(.number.precision(.fractionLength(0...3)))).monospacedDigit()
+        }
+    }
+}
+
+struct RuleEditor: View {
+    @Binding var rules: [ProfileRule]
+    let results: [RuleResult]
+    let refresh: () -> Void
+
+    var body: some View {
+        GroupBox("Prüfregeln") {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Menu("Regel hinzufügen", systemImage: "plus") {
+                        ForEach(RuleKind.allCases) { kind in
+                            Button(kind.displayName) { rules.append(ProfileRule(kind: kind)) }
+                        }
+                    }
+                    .accessibilityLabel("Prüfregel hinzufügen")
+                    Button("Regeln prüfen", systemImage: "checkmark.shield") { refresh() }
+                        .disabled(rules.isEmpty)
+                    Spacer()
+                }
+                ForEach($rules) { $rule in
+                    HStack(spacing: 10) {
+                        Text(rule.kind.displayName).frame(width: 132, alignment: .leading)
+                        switch rule.kind {
+                        case .numberRange:
+                            TextField("Minimum", text: numberText($rule, \.minimum)).frame(width: 100)
+                            TextField("Maximum", text: numberText($rule, \.maximum)).frame(width: 100)
+                        case .matchesPattern:
+                            TextField("Regex, z. B. [A-Z]{2}[0-9]+", text: $rule.pattern).frame(minWidth: 220)
+                        case .required, .unique:
+                            Text(rule.kind == .required ? "Leere Werte sind ungültig." : "Doppelte nichtleere Werte sind ungültig.")
+                                .foregroundStyle(.secondary)
+                        }
+                        if let result = results.first(where: { $0.ruleID == rule.id }) {
+                            Text("\(result.violations.formatted()) Verstöße").foregroundStyle(result.violations == 0 ? .green : .orange)
+                        }
+                        Button("Entfernen", systemImage: "trash") { rules.removeAll { $0.id == rule.id } }
+                            .labelStyle(.iconOnly).help("Regel entfernen")
+                    }
+                }
+            }.padding(4)
+        }
+    }
+
+    private func numberText(_ rule: Binding<ProfileRule>, _ keyPath: WritableKeyPath<ProfileRule, Double?>) -> Binding<String> {
+        Binding(get: { rule.wrappedValue[keyPath: keyPath].map { String($0) } ?? "" }, set: { value in
+            rule.wrappedValue[keyPath: keyPath] = Double(value.replacingOccurrences(of: ",", with: "."))
+        })
     }
 }

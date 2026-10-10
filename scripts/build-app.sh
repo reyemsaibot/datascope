@@ -18,7 +18,10 @@ tiffutil -cat "$assetOutput/icon-16.tiff" "$assetOutput/icon-32.tiff" "$assetOut
 APP="$PWD/output/DataScope.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Frameworks" "$APP/Contents/Resources"
 cp "$BUILD_DIR/release/DataScope" "$APP/Contents/MacOS/"
-cp Vendor/libduckdb.dylib "$APP/Contents/Frameworks/"
+# DataScope currently supports Apple Silicon only. Do not ship DuckDB's unused
+# x86_64 slice in the app bundle.
+lipo Vendor/libduckdb.dylib -thin arm64 -output "$assetOutput/libduckdb-arm64.dylib"
+mv -f "$assetOutput/libduckdb-arm64.dylib" "$APP/Contents/Frameworks/libduckdb.dylib"
 cp Vendor/excel.duckdb_extension "$APP/Contents/Resources/"
 cp docs/DUCKDB-LICENSE.txt "$APP/Contents/Resources/"
 cp Assets/DataScopeLogo.png "$APP/Contents/Resources/"
@@ -38,7 +41,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>CFBundleIconName</key><string>AppIcon</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>0.1.0</string>
-<key>CFBundleVersion</key><string>8</string>
+<key>CFBundleVersion</key><string>9</string>
 <key>LSMinimumSystemVersion</key><string>14.0</string>
 <key>NSHighResolutionCapable</key><true/>
 </dict></plist>

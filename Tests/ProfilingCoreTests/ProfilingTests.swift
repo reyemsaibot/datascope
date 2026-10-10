@@ -44,6 +44,33 @@ final class ProfilingTests: XCTestCase {
             XCTAssertEqual(result.columns[6].maximumLength, 0)
         }
     }
+    func testColumnInspectionReturnsRowsDistributionAndRuleResults() throws {
+        let url = fixtures.appendingPathComponent("customers.csv")
+        let required = ProfileRule(kind: .required)
+        let missing = try Profiler.inspect(url: url, options: .init(), columnName: "email", inferredType: .string,
+                                           filter: .missing, rules: [required])
+        XCTAssertEqual(missing.matchingRows, 3)
+        XCTAssertEqual(missing.rows.map(\.rowNumber), [2, 3, 4])
+        XCTAssertEqual(missing.ruleResults.first?.violations, 3)
+
+        let unique = ProfileRule(kind: .unique)
+        let id = try Profiler.inspect(url: url, options: .init(), columnName: "id", inferredType: .string,
+                                      filter: .all, rules: [unique])
+        XCTAssertEqual(id.matchingRows, 4)
+        XCTAssertEqual(id.ruleResults.first?.violations, 1)
+
+        let score = try Profiler.inspect(url: url, options: .init(), columnName: "score", inferredType: .string,
+                                         filter: .all, rules: [])
+        XCTAssertEqual(score.numericDistribution?.median, 20)
+        XCTAssertEqual(score.numericDistribution?.bins.reduce(0, +), 3)
+        XCTAssertEqual(score.textPatterns.first?.value, "00")
+
+        let range = ProfileRule(kind: .numberRange, minimum: 15)
+        let pattern = ProfileRule(kind: .matchesPattern, pattern: "[0-9]+")
+        let checked = try Profiler.inspect(url: url, options: .init(), columnName: "score", inferredType: .string,
+                                           filter: .all, rules: [range, pattern])
+        XCTAssertEqual(checked.ruleResults.map(\.violations), [2, 1])
+    }
     func testExcelIncludesRowsAfterBlankRowAndSelectsSheet() throws {
         let result = try Profiler.run(url: fixtures.appendingPathComponent("workbook.xlsx"))
         XCTAssertEqual(result.rows, 4)

@@ -19,6 +19,10 @@
   analysiert. Die UI zeigte 4 Zeilen, 4 Spalten, 5 leere/fehlende Zellen und die
   erwarteten Spaltenwerte. Die UI-Automation brach beim separaten Klick auf eine
   Tabellenzeile ab; dieser konkrete Klickpfad bleibt praktisch ungeprüft.
+- Build 9 erweitert die Detailansicht um vollständige Problemzeilen (auf 200 sichtbare
+  Zeilen begrenzt), häufige Werte, Textmuster, Quartile, Fünf-Balken-Verteilung und
+  Regelprüfungen. Der Kern testet NULL/leer/Whitespace-Zeilen, Duplikate, Verteilungen,
+  Zahlenbereiche und Regex mit synthetischen Fixtures.
 - Der Abbruchtest unterbricht eine echte DuckDB-Abfrage über zehn Milliarden
   generierte Werte nach etwa 0,1 Sekunden, Test einschließlich neuem Import ca. 0,12 s.
 - UI-Prüfung im gebündelten App-Paket: customers.csv → 4 Zeilen, 4 Spalten,
@@ -63,8 +67,10 @@ Die UI soll währenddessen bedienbar bleiben. Andere Datensätze separat messen.
   Ganzzahl, Dezimalzahl oder Datum eingestuft. Gemischte oder fehlerhafte Werte bleiben
   Text; die Anzahl numerisch interpretierbarer Werte zeigt die Abweichung. Unterstützt
   sind ISO-Datum, `TT.MM.JJJJ` und `TT/MM/JJJJ`; weitere regionale Datumsformate,
-  Zeitstempel, Histogramme, Regeln, Problemzeilen-Navigation und Projektpersistenz
-  folgen in C–E.
+  Zeitstempel, kombinierte Schlüssel und Projektpersistenz folgen in C–E.
+- Detailfilter und Regelprüfungen reimportieren die Quelle für jede angeforderte
+  Detailansicht. Sie sind dadurch vollständig, aber bei großen Dateien noch nicht über
+  einen wiederverwendbaren Importcache optimiert. Regeln sind nicht persistiert.
 - XLSX-Import liest gespeicherte Werte. Excel-Anzeigeformate, Formelberechnung,
   Shared-Formula-Sonderfälle und sehr große Arbeitsmappen sind nicht vollständig geprüft.
 - Intel, App Sandbox, Security-scoped Bookmarks, Notarisierung, Crash-Aufräumen

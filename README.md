@@ -16,6 +16,9 @@ einen Dienst übertragen.
 - numerisch interpretierbare Werte sowie Minimum, Maximum und Mittelwert
 - Spaltentyp: Ganzzahl, Dezimalzahl, Datum, Text oder leer
 - maximale Länge des Rohwerts je Spalte
+- häufige Werte, Textmuster sowie Quartile und eine kompakte Zahlenverteilung
+- Prüfregeln für Pflichtfelder, Eindeutigkeit, Zahlenbereiche und Regex-Muster
+- gefilterte Problemzeilen einer ausgewählten Spalte
 - Datenvorschau mit bis zu 100 Zeilen
 
 Führende Nullen bleiben erhalten. Eine ID wie `00123` wird deshalb als Text
@@ -89,6 +92,17 @@ deshalb **Text**, während `Numerisch` weiterhin `2` anzeigt.
 
 Erkannte Datumsformate sind `JJJJ-MM-TT`, `TT.MM.JJJJ` und `TT/MM/JJJJ`.
 
+### Problemwerte und Regeln
+
+Eine Spalte auswählen, um die Detailansicht zu öffnen. Der Filter zeigt alle Werte,
+fehlende Werte, NULL, leere Texte, Whitespace oder Typverletzungen. DataScope lädt
+dafür die Quelle lokal erneut und zeigt bis zu 200 passende Originalzeilen an.
+
+Unter **Prüfregeln** lassen sich temporär für die geöffnete Analyse Pflichtfeld,
+Eindeutigkeit, Zahlenbereich und ein vollständiges Regex-Muster hinzufügen. Über
+**Regeln prüfen** wird die Anzahl der Verstöße über die vollständige Quelldatei
+berechnet. Regeln werden in diesem Prototyp noch nicht gespeichert.
+
 ## Unterstützte Dateien und Grenzen
 
 | Format | Unterstützung |
@@ -103,8 +117,10 @@ Erkannte Datumsformate sind `JJJJ-MM-TT`, `TT.MM.JJJJ` und `TT/MM/JJJJ`.
   Tausenderpunkten interpretiert.
 - Parserfehler brechen den Import mit einer sichtbaren Fehlermeldung ab; fehlerhafte
   Zeilen werden nicht stillschweigend übersprungen.
-- DataScope ist ein Analysewerkzeug. Regeln, Histogramme, Problemzeilen-Navigation,
-  Projekte und Berichts-Export folgen in späteren Etappen.
+- DataScope ist ein Analysewerkzeug. Persistierte Regelsets, Projekte und
+  Berichts-Export folgen in späteren Etappen.
+- Detailfilter und Regelprüfungen reimportieren die Quelldatei. Das hält den
+  Speicherverbrauch begrenzt, kann bei sehr großen Dateien aber spürbar dauern.
 
 ## Beispiele und Kommandozeile
 

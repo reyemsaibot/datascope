@@ -1,16 +1,20 @@
 # DataScope – Umsetzungsplan
 
-Stand: 9. Oktober 2026. Arbeitsname: DataScope.
+Stand: 10. Oktober 2026. Arbeitsname: DataScope.
 
 ## Aktueller Stand
 
 - **A: fachlicher Entwurf erstellt.** Ablauf, Zielnutzer, Umfang und drei synthetische
   Referenzfälle festgehalten. Echte Beispieldaten und Rückmeldung zu den Annahmen offen.
 - **B: technischer Prototyp umgesetzt und geprüft.** CSV/XLSX, gemeinsame Engine,
-  native App, CLI, Abbruch, neun bestandene Tests und Million-Zeilen-Messung.
+  native App, CLI, Abbruch, Tests und Million-Zeilen-Messung.
   Ergebnisse und Grenzen: [VALIDATION.md](VALIDATION.md).
-- **C–F: geplant, noch nicht umgesetzt.** Nächster Schritt: Spaltendetails und
-  Navigation zu fehlenden/auffälligen Zeilen.
+- **C: erster durchgängiger Detailablauf umgesetzt.** Spaltenauswahl, fehlende und
+  typverletzende Werte, bis zu 200 betroffene Originalzeilen sowie Detailkennzahlen.
+- **D: erster Ausbauschritt umgesetzt.** Häufige Werte, Textmuster, Quartile,
+  Fünf-Balken-Verteilung und vier manuelle Regeltypen.
+- **E–F: geplant, noch nicht umgesetzt.** Nächster Schritt: Regel-/Importkonfiguration
+  speichern und Berichte exportieren.
 
 ## Auftrag und Entscheidungen
 
@@ -64,13 +68,16 @@ stimmen; Parserfehler sind sichtbar; Abbruch funktioniert; Messwerte dokumentier
 ## C – Erste durchgängige App
 
 Datei öffnen, Spaltenprofil auswählen, fehlende Werte anklicken, betreffende Zeilen
-anzeigen. Vorschau/Filter effizient laden. UX mit echten Beispieldaten abstimmen.
+anzeigen. Die Detailansicht importiert die Quelldatei pro Auswahl lokal erneut und
+zeigt maximal 200 Zeilen; dies schützt den Speicher, ist bei sehr großen Dateien aber
+noch kein optimierter Cache. UX mit echten Beispieldaten abstimmen.
 
 ## D – Profiling und Regeln
 
-Verteilungen, Histogramme, Median/Quantile, Datums- und Textmuster, Pflichtfelder,
-Eindeutigkeit einschließlich kombinierter Schlüssel, Wertebereiche und Regex.
-Kennzahlen klar definieren, Typverletzungen sichtbar halten und Regeln testen.
+Häufige Werte, Textmuster, Quartile, Fünf-Balken-Verteilung sowie Pflichtfeld,
+Eindeutigkeit, Zahlenbereich und Regex sind umgesetzt. Regeln sind noch temporär pro
+geöffneter Analyse; kombinierte Schlüssel, Datumsregeln und persistierte Regelsets
+folgen. Kennzahlen klar definieren, Typverletzungen sichtbar halten und Regeln testen.
 
 ## E – Projekte und Berichte
 
