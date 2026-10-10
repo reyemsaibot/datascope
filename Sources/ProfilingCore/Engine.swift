@@ -123,8 +123,17 @@ public enum Profiler {
             let number = options.decimalComma
                 ? "CASE WHEN regexp_full_match(\(cleaned), '[+-]?([0-9]+|[0-9]{1,3}(\\.[0-9]{3})+)(,[0-9]+)?') THEN try_cast(replace(replace(\(cleaned), '.', ''), ',', '.') AS DOUBLE) END"
                 : "try_cast(\(cleaned) AS DOUBLE)"
+            // Dates are intentionally limited to unambiguous, documented formats.
+            // Do not infer dates from arbitrary numeric values such as IDs or scores.
+            let date = """
+                CASE
+                    WHEN regexp_full_match(\(cleaned), '[0-9]{4}-[0-9]{2}-[0-9]{2}') THEN try_cast(\(cleaned) AS DATE)
+                    WHEN regexp_full_match(\(cleaned), '[0-9]{2}\\.[0-9]{2}\\.[0-9]{4}') THEN try_strptime(\(cleaned), '%d.%m.%Y')::DATE
+                    WHEN regexp_full_match(\(cleaned), '[0-9]{2}/[0-9]{2}/[0-9]{4}') THEN try_strptime(\(cleaned), '%d/%m/%Y')::DATE
+                END
+                """
             let result = try db.query("""
-                WITH vals AS (SELECT \(col) AS v, \(cleaned) AS cleaned, \(number) AS n FROM imported)
+                WITH vals AS (SELECT \(col) AS v, \(cleaned) AS cleaned, \(number) AS n, \(date) AS d FROM imported)
                 SELECT count(*) FILTER (WHERE v IS NULL),
                        count(*) FILTER (WHERE v = ''),
                        count(*) FILTER (WHERE v <> '' AND cleaned = ''),
@@ -132,12 +141,37 @@ public enum Profiler {
                        count(*) FILTER (WHERE isfinite(n)),
                        min(n) FILTER (WHERE isfinite(n)),
                        max(n) FILTER (WHERE isfinite(n)),
-                       avg(n) FILTER (WHERE isfinite(n)) FROM vals
+                       avg(n) FILTER (WHERE isfinite(n)),
+                       count(*) FILTER (WHERE d IS NOT NULL),
+                       count(*) FILTER (WHERE regexp_full_match(cleaned, '[+-]?(0|[1-9][0-9]*)')),
+                       count(*) FILTER (WHERE isfinite(n) AND regexp_matches(cleaned, '[.,]')),
+                       coalesce(max(char_length(v)), 0) FROM vals
                 """)[0]
+            let nulls = Int(result[0]!)!
+            let empty = Int(result[1]!)!
+            let whitespace = Int(result[2]!)!
+            let numeric = Int(result[4]!)!
+            let meaningful = rows - nulls - empty - whitespace
+            let dateCount = Int(result[8]!)!
+            let integerCount = Int(result[9]!)!
+            let decimalCount = Int(result[10]!)!
+            let dataType: InferredDataType
+            if meaningful == 0 {
+                dataType = .empty
+            } else if dateCount == meaningful {
+                dataType = .date
+            } else if numeric == meaningful && integerCount == meaningful {
+                dataType = .integer
+            } else if numeric == meaningful && decimalCount > 0 {
+                dataType = .decimal
+            } else {
+                dataType = .string
+            }
             profiles.append(ColumnProfile(name: name, nulls: Int(result[0]!)!, empty: Int(result[1]!)!,
-                                          whitespace: Int(result[2]!)!, distinct: Int(result[3]!)!, numeric: Int(result[4]!)!,
+                                          whitespace: Int(result[2]!)!, distinct: Int(result[3]!)!, numeric: numeric,
                                           minimum: result[5].flatMap(Double.init), maximum: result[6].flatMap(Double.init),
-                                          mean: result[7].flatMap(Double.init)))
+                                          mean: result[7].flatMap(Double.init), dataType: dataType,
+                                          maximumLength: Int(result[11]!)!))
         }
         let preview = try db.query("SELECT * FROM imported LIMIT 100")
         try cancellation.check()

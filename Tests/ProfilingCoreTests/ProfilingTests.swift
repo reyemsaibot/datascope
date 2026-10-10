@@ -10,13 +10,19 @@ final class ProfilingTests: XCTestCase {
         XCTAssertEqual(result.rows, 4)
         XCTAssertEqual(result.preview[0][0], "00123")
         XCTAssertEqual(result.preview[3][3], "line one\nline two")
-        XCTAssertEqual(result.columns[0].distinct, 3)
+        let id = result.columns[0]
+        XCTAssertEqual(id.distinct, 3)
+        XCTAssertEqual(id.dataType, .string)
+        XCTAssertEqual(id.maximumLength, 5)
         let email = result.columns[1]
         XCTAssertEqual(email.nulls, 1); XCTAssertEqual(email.empty, 1); XCTAssertEqual(email.whitespace, 1)
         XCTAssertEqual(email.distinct, 1)
+        XCTAssertEqual(email.dataType, .string)
         let score = result.columns[2]
         XCTAssertEqual(score.numeric, 3); XCTAssertEqual(score.minimum, 10)
         XCTAssertEqual(score.maximum, 30); XCTAssertEqual(score.mean, 20)
+        XCTAssertEqual(score.dataType, .integer)
+        XCTAssertEqual(result.columns[3].maximumLength, 17)
     }
     func testGermanNumbers() throws {
         var options = ImportOptions(); options.delimiter = ";"; options.decimalComma = true
@@ -26,6 +32,17 @@ final class ProfilingTests: XCTestCase {
         XCTAssertEqual(result.columns[1].numeric, 2)
         XCTAssertEqual(result.columns[1].mean, 623.5)
         XCTAssertEqual(result.columns[1].nulls, 1)
+        XCTAssertEqual(result.columns[0].dataType, .string)
+        XCTAssertEqual(result.columns[1].dataType, .string)
+        XCTAssertEqual(result.columns[2].dataType, .string)
+    }
+    func testInfersIntegerDecimalAndDocumentedDateFormats() throws {
+        try withCSV("whole,decimal,iso,german,slash,text,empty\n-12,1.50,2025-12-31,31.12.2025,31/12/2025,ABC,\n7,2.00,2026-01-01,01.01.2026,01/01/2026,XYZ,\n") { url in
+            let result = try Profiler.run(url: url)
+            XCTAssertEqual(result.columns.map(\.dataType), [.integer, .decimal, .date, .date, .date, .string, .empty])
+            XCTAssertEqual(result.columns[5].maximumLength, 3)
+            XCTAssertEqual(result.columns[6].maximumLength, 0)
+        }
     }
     func testExcelIncludesRowsAfterBlankRowAndSelectsSheet() throws {
         let result = try Profiler.run(url: fixtures.appendingPathComponent("workbook.xlsx"))

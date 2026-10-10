@@ -43,7 +43,10 @@ Die Beispieldateien sind synthetisch; reale Anwenderdaten wurden nicht verwendet
 - Unterschiedliche Werte: exakte Anzahl nichtleerer Rohwerte, case-sensitive.
 - Zahlen: endliche DOUBLE-Werte; Min/Max/Mittelwert nur dieser Teilmenge. Für deutsche
   Zahlen gelten Dezimalkomma und optional korrekt gruppierte Tausenderpunkte.
-  Diese Kennzahlen sind ein technischer Versuch, keine fachliche Typentscheidung.
+  Die Spaltentypen unterscheiden Ganzzahl, Dezimalzahl, Datum, Text und leer. Ein
+  Typ erscheint nur, wenn alle befüllten Werte dazu passen; führende Nullen machen
+  eine sonst numerische ID zu Text. Erkannt werden ISO-Datum (`JJJJ-MM-TT`) sowie
+  `TT.MM.JJJJ` und `TT/MM/JJJJ`. „Max. Länge“ misst den längsten Rohwert.
 - Parserfehler brechen den Import sichtbar ab. Fehlerzeilen-Export folgt später.
 - Speicher: DuckDB-Pufferbudget 512 MB, vier Threads, temporäre Auslagerung auf Disk.
   Das Budget ist keine harte Grenze für den gesamten Prozess. Temporäre Dateien

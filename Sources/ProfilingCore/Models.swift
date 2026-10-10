@@ -7,6 +7,25 @@ public struct ImportOptions: Sendable, Codable {
     public var decimalComma = false
     public init() {}
 }
+
+public enum InferredDataType: String, Sendable, Codable {
+    case integer
+    case decimal
+    case date
+    case string
+    case empty
+
+    public var displayName: String {
+        switch self {
+        case .integer: "Ganzzahl"
+        case .decimal: "Dezimalzahl"
+        case .date: "Datum"
+        case .string: "Text"
+        case .empty: "Leer"
+        }
+    }
+}
+
 public struct ColumnProfile: Sendable, Codable, Identifiable {
     public var id: String { name }
     public let name: String
@@ -18,6 +37,8 @@ public struct ColumnProfile: Sendable, Codable, Identifiable {
     public let minimum: Double?
     public let maximum: Double?
     public let mean: Double?
+    public let dataType: InferredDataType
+    public let maximumLength: Int
     public var missing: Int { nulls + empty + whitespace }
 }
 public struct Profile: Sendable, Codable {
